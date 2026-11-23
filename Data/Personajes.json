@@ -1,0 +1,12 @@
+[
+  {
+    "Id": 1,
+    "Nombre": "Pikachu",
+    "Videojuego": "Pok\u00E9mon",
+    "Clase": "El\u00E9ctrico",
+    "Nivel": 20,
+    "Poder": 50,
+    "Disponible": true,
+    "ImagenUrl": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"
+  }
+]
