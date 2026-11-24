@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// SQL Server
 builder.Services.AddDbContext<PersonajesDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("SqlServerConnection")
@@ -19,7 +20,7 @@ builder.Services.AddDbContext<PersonajesDbContext>(options =>
 builder.Services.AddScoped<IPersonajeRepository, PersonajeSqlRepository>();
 builder.Services.AddScoped<IPersonajeService, PersonajeService>();
 
-// Configuración de JWT.
+// JWT
 var jwt = builder.Configuration.GetSection("Jwt");
 
 byte[] key = Convert.FromBase64String(
@@ -49,8 +50,23 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// CORS para el cliente abierto con Live Server en el puerto 5500
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CharacterHubFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5500",
+                "http://127.0.0.1:5500"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -64,6 +80,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors("CharacterHubFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
