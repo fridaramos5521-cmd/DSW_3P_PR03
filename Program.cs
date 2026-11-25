@@ -2,13 +2,19 @@ using DSW_3P_PR03.Data;
 using DSW_3P_PR03.Repositories;
 using DSW_3P_PR03.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 
 // SQL Server
 builder.Services.AddDbContext<PersonajesDbContext>(options =>
@@ -50,7 +56,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// CORS para el cliente abierto con Live Server en el puerto 5500
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CharacterHubFrontend", policy =>
@@ -66,7 +72,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -87,3 +92,56 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Indica a Swagger qué operaciones requieren el token Bearer.
+internal sealed class BearerSecuritySchemeTransformer
+    : IOpenApiDocumentTransformer
+{
+    public Task TransformAsync(
+        OpenApiDocument document,
+        OpenApiDocumentTransformerContext context,
+        CancellationToken cancellationToken)
+    {
+        document.Components ??= new OpenApiComponents();
+
+        document.Components.SecuritySchemes =
+            new Dictionary<string, IOpenApiSecurityScheme>
+            {
+                ["Bearer"] = new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT"
+                }
+            };
+
+        foreach (var (path, pathItem) in document.Paths)
+        {
+            // El login debe poder usarse sin token.
+            if (path.Equals(
+                "/api/auth/login",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (pathItem.Operations is null)
+                continue;
+
+            foreach (var operation in pathItem.Operations.Values)
+            {
+                operation.Security ??= [];
+
+                operation.Security.Add(
+                    new OpenApiSecurityRequirement
+                    {
+                        [new OpenApiSecuritySchemeReference(
+                            "Bearer",
+                            document)] = []
+                    });
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+}
